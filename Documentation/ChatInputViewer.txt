@@ -4,6 +4,6 @@ When role-playing in ESO you have the problem that you cannot see the complete t
 
 This AddOn displays the complete text in a separate field, placed directly below the chat window.
 
-If the input reaches 80% of the maximum possible number of characters, the text colour changes to yellow, at 90 to orange and at 100% to red.
+When the input reaches 80% of the maximum possible number of characters, the text colour changes to yellow, at 90 to orange and at 100% to red.
 
-The font size, window width and the number of lines displayed can be set in the settings.
+In the Settings the font size, window width and the number of lines displayed can be set.
