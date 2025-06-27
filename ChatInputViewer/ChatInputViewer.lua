@@ -1,7 +1,18 @@
+--- ChatInput viewer
+--- Version 1.1.0
+
+--- Changelog
+--- V. 1.1.0 - Russian translation added.
+---          - Bugfix for character counting of multibyte characters.
+---          - Spelling errors removed
+--- V. 1.0.0 - Initial version.
+
+--- ---------------------------------------------------------------------
+
 --- The Addon namespace.
----@class ChatInputViewer
----@field OnAddOnLoaded function
----@field name string
+--- @class ChatInputViewer
+--- @field OnAddOnLoaded function
+--- @field name string
 ChatInputViewer = {}
 ChatInputViewer.name = "ChatInputViewer"
 
@@ -32,12 +43,11 @@ local function ShowChatInput()
 
 	local chatInput, viewerOutput
 	local chatInputSize, foundPos
-	local currentChatEditBoxStr = ZO_ChatWindowTextEntryEditBox:GetText()
 	local currentInputLengthState
 	local statCol
 
-	chatInput = currentChatEditBoxStr
-	chatInputSize = #chatInput
+	chatInput = ZO_ChatWindowTextEntryEditBox:GetText()
+	chatInputSize = utf8.len(chatInput)
 	viewerOutput = ""
 
 	if (chatInputSize >= 350) then
@@ -57,7 +67,7 @@ local function ShowChatInput()
 
 	LastInputLengthState = currentInputLengthState
 
-	ChatInputViewerControl_Label:SetText(currentChatEditBoxStr)
+	ChatInputViewerControl_Label:SetText(chatInput)
 
 end
 
