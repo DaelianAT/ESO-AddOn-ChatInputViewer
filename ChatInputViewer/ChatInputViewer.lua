@@ -1,7 +1,9 @@
 --- ChatInput viewer
---- Version 1.1.0
+--- Version 1.2.0
 
 --- Changelog
+--- V. 1.2.0 - Update for ESO Version 11.1.5, API version 101047
+---          - Repeating the channel color of the input textbox in the viewer.
 --- V. 1.1.0 - Russian translation added.
 ---          - Bugfix for character counting of multibyte characters.
 ---          - Spelling errors removed
@@ -31,6 +33,7 @@ local ExistingOnTextChangedHandler
 ---   4   350 characters
 local LastInputLengthState
 local InputLengthStateColors
+local LastChannel
 
 --- Table containing the provided window modes.
 ---   1   "Adjusted to chat window"
@@ -60,14 +63,19 @@ local function ShowChatInput()
 		currentInputLengthState = 1
 	end
 
-	if (currentInputLengthState ~= LastInputLengthState) then
-		statCol = InputLengthStateColors[currentInputLengthState]
-		ChatInputViewerControl_Label:SetColor(statCol[1], statCol[2], statCol[3], statCol[4])
-	end
-
-	LastInputLengthState = currentInputLengthState
-
 	ChatInputViewerControl_Label:SetText(chatInput)
+
+	if (currentInputLengthState > 1) then
+		if (currentInputLengthState ~= LastInputLengthState) then
+			statCol = InputLengthStateColors[currentInputLengthState]
+			ChatInputViewerControl_Label:SetColor(statCol[1], statCol[2], statCol[3], statCol[4])
+			LastChannel = nil
+		end
+	elseif (LastChannel ~= CHAT_SYSTEM.currentChannel) then 
+		ChatInputViewerControl_Label:SetColor(ZO_ChatSystem_GetCategoryColorFromChannel(CHAT_SYSTEM.currentChannel))
+		LastChannel = CHAT_SYSTEM.currentChannel
+	end
+	LastInputLengthState = currentInputLengthState
 
 end
 
@@ -283,6 +291,8 @@ local function initializeChatInputViewer()
 
 	local panelName = "ChatInputViewerOptions"
 
+	LastChannel = nil
+
 	LastInputLengthState = 0
 	InputLengthStateColors = {
 		[1] = {1.0, 1.0, 1.0, 1.0},
@@ -297,7 +307,7 @@ local function initializeChatInputViewer()
 	}
 
 	ChatInputViewerControl_Label:SetFont("$(CHAT_FONT)|$(KB_" .. savedVariables.fontsize .. ")|soft-shadow-thick")
-	ChatInputViewerControl_Label:SetWrapMode(TEXT_WRAP_MODE_ELLIPSIS) 
+	ChatInputViewerControl_Label:SetWrapMode(TEXT_WRAP_MODE_ELLIPSIS)
 	ChatInputViewerControl:ClearAnchors()
 	if (savedVariables.mode == 1) then
 		ChatInputViewerControl:SetAnchor(TOPLEFT, ZO_ChatWindow, BOTTOMLEFT, 0, 0)

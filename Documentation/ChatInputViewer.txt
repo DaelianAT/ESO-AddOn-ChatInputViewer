@@ -1,10 +1,10 @@
 This AddOn was written especially for role-players.
 
-When role-playing in ESO you often encounter the problem that you cannot see the complete text you have entered in the chat input field.
+When role-playing in ESO you encounter the problem that you can't see the complete text you have entered in the chat input field.
 
 This AddOn displays the complete text in a separate field, placed directly below the chat window.
 
-When the input reaches 80% of the maximum possible number of characters, the text colour changes to yellow, at 90 to orange and at 100% to red.
+The text is shown in the same color as the text in the Input field. When the input reaches 80% of the maximum possible number of characters, the text colour changes to yellow, at 90 to orange and at 100% to red.
 
 In the Settings the font size, window width and the number of displayed lines can be set.
 
@@ -16,7 +16,7 @@ LibAddonMenu-2.0 (Version >= 40)
 
 == Supported Languages ==
 
-En, FR, EN, RU
+EN, DE, FR, RU
 
 
 == When using for the first time ==
@@ -25,6 +25,9 @@ The area for displaying the chat input is displayed below the chat window. If th
 
 
 == Changelog ==
+
+V. 1.2.0 - Update for ESO Version 11.1.5, API version 101047
+         - Repeating the channel color of the input textbox in the viewer.
 
 V. 1.1.0 - Russian translation added.
          - Bugfix for character counting of multibyte characters.
