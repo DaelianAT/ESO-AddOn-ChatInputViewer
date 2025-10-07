@@ -1,8 +1,10 @@
 --- ChatInput viewer
---- Version 1.2.0
+--- Version 1.2.1
 
 --- Changelog
---- V. 1.2.0 - Update for ESO Version 11.1.5, API version 101047
+--- V. 1.2.1 - Exception prevented, when slash commands were used more than one time.
+---          - Slash commands /civshow and /civhide added.
+--- V. 1.2.0 - Update for ESO Version 11.1.5, API version 101047.
 ---          - Repeating the channel color of the input textbox in the viewer.
 --- V. 1.1.0 - Russian translation added.
 ---          - Bugfix for character counting of multibyte characters.
@@ -107,7 +109,9 @@ end
 local function ShowViewer()
 	ChatInputViewerControl_Label:SetHidden(false)
 	ChatInputViewerControl_BG:SetHidden(false)
-	SetChatHandlers(true)
+	if (savedVariables.visible == false) then
+		SetChatHandlers(true)
+	end
 	savedVariables.visible = true
 end
 
@@ -115,7 +119,9 @@ end
 local function HideViewer()
 	ChatInputViewerControl_Label:SetHidden(true)
 	ChatInputViewerControl_BG:SetHidden(true)
-	SetChatHandlers(false)
+	if (savedVariables.visible== true) then
+		SetChatHandlers(false)
+	end
 	savedVariables.visible = false
 end
 
@@ -237,7 +243,7 @@ local function setWindowMode(val)
 	local text
 
 	for k, v in pairs(ModeChoices) do
-		if v == val then
+		if (v == val) then
 			savedVariables.mode = k
 		end
 	end
@@ -427,7 +433,9 @@ end
 
 --- Register the slash commands
 SLASH_COMMANDS["/showchatviewer"] = ShowViewer
+SLASH_COMMANDS["/civshow"] = ShowViewer
 SLASH_COMMANDS["/hidechatviewer"] = HideViewer
+SLASH_COMMANDS["/civhide"] = HideViewer
 
 --- Register the EVENT_ADD_ON_LOADED event
 EVENT_MANAGER:RegisterForEvent(ChatInputViewer.name, EVENT_ADD_ON_LOADED, ChatInputViewer.OnAddOnLoaded)
