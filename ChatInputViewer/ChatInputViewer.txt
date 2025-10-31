@@ -1,6 +1,6 @@
 ## Title: ChatInput Viewer
 ## Description: This AddOn shows the complete text of the Chat Input text field in a multi line textfield.
-## APIVersion: 101046 101047
+## APIVersion: 101047 101048
 ## Author: GetanoNero
 ## Version: 1.2.1
 ## AddOnVersion: 9

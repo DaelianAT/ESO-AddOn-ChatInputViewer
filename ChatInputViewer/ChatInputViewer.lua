@@ -2,7 +2,8 @@
 --- Version 1.2.1
 
 --- Changelog
---- V. 1.2.1 - Exception prevented, when slash commands were used more than one time.
+--- V. 1.2.1 - Update for ESO Version 11.2.6, API version 101048.
+---          - Exception prevented, when slash commands were used more than one time.
 ---          - Slash commands /civshow and /civhide added.
 --- V. 1.2.0 - Update for ESO Version 11.1.5, API version 101047.
 ---          - Repeating the channel color of the input textbox in the viewer.
