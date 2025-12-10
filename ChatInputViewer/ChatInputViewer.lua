@@ -1,7 +1,8 @@
 --- ChatInput viewer
---- Version 1.2.1
+--- Version 1.2.2
 
 --- Changelog
+--- V. 1.2.2 - Bugfix for an issue during AddOn initialization
 --- V. 1.2.1 - Update for ESO Version 11.2.6, API version 101048.
 ---          - Exception prevented, when slash commands were used more than one time.
 ---          - Slash commands /civshow and /civhide added.
@@ -324,6 +325,8 @@ local function initializeChatInputViewer()
 		ChatInputViewerControl:SetAnchor(TOPLEFT, ZO_ChatWindow, BOTTOMLEFT, 0, 0)
 		ResizeViewerControl(savedVariables.windowwidth, savedVariables.nroflines, savedVariables.fontsize)
 	end
+
+	SetChatHandlers(savedVariables.visible)
 
 	--- The panel data for the ChatInputViewer addon, that are shown in the Addon settings GUI.
 	---   @class panelData
