@@ -1,7 +1,8 @@
 --- ChatInput viewer
---- Version 1.2.2
+--- Version 1.2.3
 
 --- Changelog
+--- V. 1.2.3 - Update for ESO Version 11.3.4, API version 101049.
 --- V. 1.2.2 - Bugfix for an issue during AddOn initialization
 --- V. 1.2.1 - Update for ESO Version 11.2.6, API version 101048.
 ---          - Exception prevented, when slash commands were used more than one time.
