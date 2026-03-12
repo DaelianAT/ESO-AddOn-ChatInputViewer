@@ -1,7 +1,10 @@
 --- ChatInput viewer
---- Version 1.2.3
+--- Version 1.3.0
 
 --- Changelog
+--- V. 1.3.0 - New view mode 'minimized'
+---          - Key binding for tuggling the view state
+---          - new chat commands '/civshow', '/civhide', '/civmini'
 --- V. 1.2.3 - Update for ESO Version 11.3.4, API version 101049.
 --- V. 1.2.2 - Bugfix for an issue during AddOn initialization
 --- V. 1.2.1 - Update for ESO Version 11.2.6, API version 101048.
@@ -16,12 +19,18 @@
 
 --- ---------------------------------------------------------------------
 
+--	d( "----------" )
+
+
 --- The Addon namespace.
 --- @class ChatInputViewer
 --- @field OnAddOnLoaded function
 --- @field name string
 ChatInputViewer = {}
 ChatInputViewer.name = "ChatInputViewer"
+
+--- @field CivLogger object # Instance of the LibDebugLogger logger for this AddOn.
+local CivLogger
 
 --- # ChatInputViewerVars
 --- @class savedVariables
@@ -37,7 +46,13 @@ local ExistingOnTextChangedHandler
 ---   3   315 - 349 characters
 ---   4   350 characters
 local LastInputLengthState
+--- Array for the color definitions of the colors showing the inpt string state.
+---   1   {1.0, 1.0, 1.0, 1.0}
+---   2   {1.0, 1.0, 0.0, 1.0}
+---   3   {1.0, 0.5, 0.0, 1.0}
+---   4   {1.0, 0.0, 0.0, 1.0}
 local InputLengthStateColors
+--- Last channel used in the chat.
 local LastChannel
 
 --- Table containing the provided window modes.
@@ -68,7 +83,11 @@ local function ShowChatInput()
 		currentInputLengthState = 1
 	end
 
-	ChatInputViewerControl_Label:SetText(chatInput)
+	if (savedVariables.minimised == false) then
+		ChatInputViewerControl_Label:SetText(chatInput)
+	else
+		ChatInputViewerControl_Label:SetText(chatInputSize .. " / 350")
+	end
 
 	if (currentInputLengthState > 1) then
 		if (currentInputLengthState ~= LastInputLengthState) then
@@ -85,9 +104,98 @@ local function ShowChatInput()
 end
 
 
-local function SetChatHandlers(val)
+--- Calculates the height of the viewer window according to the given parameters.
+---   @param nrOfLines number # The number of shown lines.
+---   @param fontsize  number # The fontsize of the viewer window.
+---   @return boolean height  # The calculated window height.
+local function CalculateViewerHeight(nrOfLines, fontsize)
 
-	if (val) then
+	local height, addFontsize
+
+	--CivLogger:Debug( "CalculateViewerHeight()")
+	--CivLogger:Debug( ".   Params: " .. nrOfLines .. ", " .. fontsize)
+
+	if (nrOfLines == 0) then
+		--CivLogger:Debug( ".   New Viewer Height: 0")
+		return 0
+	end
+
+	if (fontsize == 16) then
+		addFontsize = 5
+	elseif (fontsize == 24) then
+		addFontsize = 7
+	else
+		addFontsize = 6
+	end
+
+	height = nrOfLines * (fontsize + addFontsize) + 12
+
+	--CivLogger:Debug( ".   New Viewer Height: " .. height)
+
+	return height
+
+end
+
+local function CetCurrentViewerHeight()
+
+	local currentHeight
+
+	--CivLogger:Debug( "CetCurrentViewerHeight()")
+
+	currentHeight = 0
+	if (savedVariables.visible == true) then
+		if _G["ChatInputViewerControl"] ~= nil then
+			currentHeight = _G["ChatInputViewerControl"]:GetHeight()
+		end
+	end
+
+	--CivLogger:Debug( ".   Current Viewer Height: " .. currentHeight)
+
+	return currentHeight
+
+end
+
+--- Moves the chat window vertically. The function limits the movement so that the
+--- chat window always remains within the game window.
+---   @param deltaY  number # A positive value moves the window down, a negative up.
+local function MoveChatWindowY(deltaY)
+
+	local chatXPos, chatYPos, rootYPos, chatheight1, chatheight2
+	--local chatYPos2
+
+	--CivLogger:Debug( "MoveChatWindowY()")
+
+	chatYPos = ZO_ChatWindow:GetBottom()
+
+	if (deltaY > 0) then
+		rootYPos = GuiRoot:GetBottom()
+		if (chatYPos + deltaY > rootYPos) then
+			deltaY = rootYPos - chatYPos
+		end
+	end
+
+	--chatYPos2 = ZO_ChatWindow:GetBottom()
+	chatXPos = ZO_ChatWindow:GetLeft()
+	chatYPos = ZO_ChatWindow:GetTop()
+	chatheight1 = ZO_ChatWindow:GetHeight()
+
+	ZO_ChatWindow:SetSimpleAnchorParent(chatXPos, chatYPos + deltaY)
+	chatheight2 = ZO_ChatWindow:GetHeight()
+
+	if (chatheight2 ~= chatheight1) then
+		ZO_ChatWindow:SetSimpleAnchorParent(chatXPos, chatYPos + deltaY + 0.01)
+		ZO_ChatWindow:SetHeight(chatheight1)
+	end
+
+end
+
+
+local function SetChatHandlers(addOnEnabled)
+
+	if (addOnEnabled) then
+
+		--CivLogger:Debug( "In SetChatHandlers: register to event")
+
 		-- Store an already existing event handler of another AddOn in ExistingOnTextChangedHandler
 		ExistingOnTextChangedHandler = ZO_ChatWindowTextEntryEditBox:GetHandler("OnTextChanged")
 		-- Register ChatInputViewer to the event
@@ -98,6 +206,9 @@ local function SetChatHandlers(val)
 			end
 		end)
 	else
+
+		--CivLogger:Debug( "In SetChatHandlers: unregister from event")
+
 		-- If the Viewer is not visible, unregister the AddOn
 		if (ExistingOnTextChangedHandler ~= nil) then
 			-- Register the original event handler, that was stored in ExistingOnTextChangedHandler
@@ -110,137 +221,202 @@ end
 
 --- Shows the viewer window.
 local function ShowViewer()
-	ChatInputViewerControl_Label:SetHidden(false)
-	ChatInputViewerControl_BG:SetHidden(false)
+	local currentHeight, newHeight, deltaY
+
+	--CivLogger:Debug( "ShowViewer()")
+
+	-- Calculate the movement for the chat window
+	currentHeight = CetCurrentViewerHeight()
+	newHeight = CalculateViewerHeight(savedVariables.nroflines, savedVariables.fontsize)
+	deltaY = currentHeight - newHeight
+
+	if (deltaY ~= 0) then
+		MoveChatWindowY(deltaY)
+	end
+
+	ChatInputViewerControl:SetHeight(newHeight)
+	ChatInputViewerControl_Label:SetHeight(newHeight - 10)
 	if (savedVariables.visible == false) then
+		ChatInputViewerControl_Label:SetHidden(false)
+		ChatInputViewerControl_BG:SetHidden(false)
 		SetChatHandlers(true)
 	end
 	savedVariables.visible = true
+	savedVariables.minimised = false
+	ShowChatInput()
 end
 
 --- Hides the viewer window.
 local function HideViewer()
-	ChatInputViewerControl_Label:SetHidden(true)
-	ChatInputViewerControl_BG:SetHidden(true)
-	if (savedVariables.visible== true) then
+	local currentHeight, deltaY
+
+	--CivLogger:Debug( "HideViewer()")
+
+	-- Calculate the movement for the chat window
+	currentHeight = CetCurrentViewerHeight()
+	deltaY = currentHeight
+
+	if (deltaY ~= 0) then
+		MoveChatWindowY(deltaY)
+	end
+
+	if (savedVariables.visible == true) then
+		ChatInputViewerControl_Label:SetHidden(true)
+		ChatInputViewerControl_BG:SetHidden(true)
 		SetChatHandlers(false)
 	end
 	savedVariables.visible = false
+	savedVariables.minimised = false
 end
 
+--- Shows the viewer window in a minimised state that only shows a single line
+--- with the number of characters in the input field.
+local function MinimiseViewer()
+	local currentHeight, newHeight, deltaY
 
---- Sets the width of the viewer window.
----   @param val number # The width of the viewer window.
+	--CivLogger:Debug( "MinimiseViewer()")
+
+	-- Calculate the movement for the chat window
+	currentHeight = CetCurrentViewerHeight()
+	newHeight = CalculateViewerHeight(1, savedVariables.fontsize)
+	deltaY = currentHeight - newHeight
+
+	--CivLogger:Debug( "----- Alt: " .. currentHeight .. ", Neu: " .. newHeight .. ", Delta: " .. deltaY)
+
+	if (deltaY ~= 0) then
+		MoveChatWindowY(deltaY)
+	end
+
+	-- Resize the viewer window
+	-- Set the new viewer state (visible, minimised)
+	ChatInputViewerControl:SetHeight(newHeight)
+	ChatInputViewerControl_Label:SetHeight(newHeight - 10)
+	if (savedVariables.visible == false) then
+		ChatInputViewerControl_Label:SetHidden(false)
+		ChatInputViewerControl_BG:SetHidden(false)
+		SetChatHandlers(true)
+	end
+	savedVariables.visible = true
+	savedVariables.minimised = true
+	ShowChatInput()
+
+end
+
+--- Calculates the number of lines for rezising the viewer depending on the given
+--- values for visibility and minimise state.
+---   @param visible   boolean # Flag if the viewer window is visibile.
+---   @param minimised boolean # Flag if the viewer window is minimised.
+local function CalculateNrOfLines( visible, minimised, newNrOfLines)
+
+	local nrOfShownLines
+
+	if (savedVariables.visible == false) then
+		nrOfShownLines = 0
+	elseif (savedVariables.visible == true and savedVariables.minimised == true) then
+		nrOfShownLines = 1
+	else
+		if (newNrOfLines ~= nil) then
+			nrOfShownLines = newNrOfLines
+		else
+			nrOfShownLines = savedVariables.nroflines
+		end
+	end
+
+	return nrOfShownLines
+	
+end
+
+--- Sets the width and the height of the viewer window.
+---   @param width     number # The width of the viewer window. When the window is adjusted to the
+---                             chat window, 0 has to be provided.
+---   @param nrOfLines number # The number of text rows that are shown in the viewer.
+---   @param fontsize  number # The font size of the viewer text.
 local function ResizeViewerControl(width, nrOfLines, fontsize)
 
-	local height, addFontsize
+	local height
+	local nrOfShownLines
 
-	-- If a fixes width is given, set the width
-	-- and calculate the number of lines to show.
+	-- If a fixed width is given, set the width
 	if (width > 0) then
 		ChatInputViewerControl:SetWidth(width)
-
-		--[[ Deactivated because it is difilcult to understand for the user.
-
-		if (fontsize == 16 or fontsize == 18) then
-			if (width < 800) then
-				nrOfLines = 5
-			elseif (width < 1000) then
-				nrOfLines = 4
-			else
-				nrOfLines = 3
-			end
-		elseif (fontsize == 20) then
-			if (width < 800) then
-				nrOfLines = 6
-			elseif (width < 1000) then
-				nrOfLines = 4
-			else
-				nrOfLines = 3
-			end
-		elseif (fontsize == 22) then
-			if (width < 800) then
-				nrOfLines = 6
-			elseif (width < 1000) then
-				nrOfLines = 5
-			elseif (width < 1200) then
-				nrOfLines = 4
-			else
-				nrOfLines = 3
-			end
-		else
-			if (width < 800) then
-				nrOfLines = 7
-			elseif (width < 1000) then
-				nrOfLines = 5
-			else
-				nrOfLines = 4
-			end
-		end
-		]]
 	end
 
-	if (fontsize == 16) then
-		addFontsize = 5
-	elseif (fontsize == 24) then
-		addFontsize = 7
-	else
-		addFontsize = 6
-	end
-
-	height = nrOfLines * (fontsize + addFontsize) + 2
-	ChatInputViewerControl:SetHeight(height + 10)
-	ChatInputViewerControl_Label:SetHeight(height)
+	nrOfShownLines = CalculateNrOfLines( savedVariables.visible, savedVariables.minimised, nrOfLines)
+	height = CalculateViewerHeight(nrOfShownLines, fontsize)
+	ChatInputViewerControl:SetHeight(height)
+	ChatInputViewerControl_Label:SetHeight(height - 10)
 
 end
 
 
 --- Retrieves the visibility status of the viewer window.
+--- This function is used for the communication with the settings menu.
 ---   @return boolean visible # The visibility status.
 local function getVisibility()
 	return savedVariables.visible
 end
 
---- Sets the visibility status of the viewer window.
----   @param val boolean # The visibility status to set.
-local function setVisibility(val)
-	if (val == true) then
-		ShowViewer()
+--- Retrieves the visibility status of the viewer window.
+--- This function is used for the communication with the settings menu.
+---   @return boolean visible # The visibility status.
+local function getMinimised()
+	return savedVariables.minimised
+end
+
+--- Sets the visibility status of the viewer window and changes the visibility.
+--- This function is used for the communication with the settings menu.
+---   @param visible   boolean # Flag if the viewer window is visibile.
+---   @param minimised boolean # Flag if the viewer window is minimised.
+local function setVisibility( visible, minimised)
+	if (visible == true) then
+		if (minimised == true) then
+			MinimiseViewer()
+		else
+			ShowViewer()
+		end
 	else
 		HideViewer()
 	end
 end
 
 --- Retrieves the font size for the viewer window.
+--- This function is used for the communication with the settings menu.
 ---   @return number fontsize # The font size of the viewer text.
 local function getFontSize()
 	return savedVariables.fontsize
 end
 
 --- Sets the font size of the text in the viewer window.
+--- This function is used for the communication with the settings menu.
 ---   @param val number # The font size of the viewer text.
 local function setFontSize(val)
+
+	local nrOfShownLines
+
+	nrOfShownLines = CalculateNrOfLines( savedVariables.visible, savedVariables.minimised)
 	ChatInputViewerControl_Label:SetFont("$(CHAT_FONT)|$(KB_" .. val .. ")|soft-shadow-thick")
 	ChatInputViewerControl:ClearAnchors()
 	if (savedVariables.mode == 1) then
 		ChatInputViewerControl:SetAnchor(TOPLEFT, ZO_ChatWindow, BOTTOMLEFT, 0, 0)
 		ChatInputViewerControl:SetAnchor(TOPRIGHT, ZO_ChatWindow, BOTTOMRIGHT, 0, 0)
-		ResizeViewerControl(0, savedVariables.nroflines, val)
+		ResizeViewerControl(0, nrOfShownLines, val)
 	else
 		ChatInputViewerControl:SetAnchor(TOPLEFT, ZO_ChatWindow, BOTTOMLEFT, 0, 0)
-		ResizeViewerControl(savedVariables.windowwidth, savedVariables.nroflines, val)
+		ResizeViewerControl(savedVariables.windowwidth, nrOfShownLines, val)
 	end
 	savedVariables.fontsize = val
 end
 
 --- Retrieves the mode of the viewer window.
----   @return number mode # The ID of the window mode (1 = fixed, 2 = adjusted).
+--- This function is used for the communication with the settings menu.
+---   @return number mode # The ID of the window mode (1 = adjusted, 2 = fixed).
 local function getWindowMode()
 	return ModeChoices[savedVariables.mode]
 end
 
 --- Sets the mode of the viewer window.
----   @param val number # The ID of the window mode (1 = fixed, 2 = adjusted).
+--- This function is used for the communication with the settings menu.
+---   @param val number # The ID of the window mode (1 = adjusted, 2 = fixed).
 local function setWindowMode(val)
 
 	local text
@@ -263,12 +439,14 @@ local function setWindowMode(val)
 end
 
 --- Retrieves the width for the viewer window.
+--- This function is used for the communication with the settings menu.
 ---   @return number width # The width for the viewer window.
 local function getWindowWidth()
 	return savedVariables.windowwidth
 end
 
 --- Sets the width of the viewer window.
+--- This function is used for the communication with the settings menu.
 ---   @param val number # The width of the viewer window.
 local function setWindowWidth(val)
 	if (savedVariables.mode == 2) then
@@ -278,31 +456,65 @@ local function setWindowWidth(val)
 end
 
 --- Retrieves the number of text lines for the viewer window.
---- This value is used when the windows width is adjusted to the chat window.
+--- This function is used for the communication with the settings menu.
 ---   @return number width # The  number of text lines for the viewer window.
 local function getNrOfLines()
 	return savedVariables.nroflines
 end
 
 --- Sets the number of text lines for the viewer window.
---- This value is used when the windows width is adjusted to the chat window.
+--- This function is used for the communication with the settings menu.
 ---   @param val number # The  number of text lines for the viewer window.
 local function setNrOfLines(val)
-	--if (savedVariables.mode == 1) then
 	ResizeViewerControl(0, val, savedVariables.fontsize)
-	--end
 	savedVariables.nroflines = val
 end
 
 
---- Initializes the addon by setting the font size.
+--- Function used for key binding. It is called by the game engine when the defined
+--- key is pressed.
+function ToggleViewer()
+
+	if (savedVariables.visible == true) then
+		if (savedVariables.minimised == true) then
+			HideViewer()
+		else
+			MinimiseViewer()
+		end
+	else
+		ShowViewer()
+	end
+
+end
+
+--- Sets the Position of the Chat window depending on the size of the viewer window.
+local function SetChatWindowAtStartUp()
+
+	local nrOfLines, height
+
+	--CivLogger:Debug( "SetChatWindowAtStartUp()")
+
+	-- Calculate the height of the viewer window.
+	nrOfLines = CalculateNrOfLines( savedVariables.visible, savedVariables.minimised)
+	height = CalculateViewerHeight(nrOfLines, savedVariables.fontsize)
+
+	-- Move the chat window if necessary
+	if (height ~= 0) then
+		MoveChatWindowY(height)
+	end
+
+end
+
+--- Initializes the AddOn
 local function initializeChatInputViewer()
 
 	local panelName = "ChatInputViewerOptions"
+	local nrOfShownLines
+	local kbText
 
 	LastChannel = nil
-
 	LastInputLengthState = 0
+
 	InputLengthStateColors = {
 		[1] = {1.0, 1.0, 1.0, 1.0},
 		[2] = {1.0, 1.0, 0.0, 1.0},
@@ -318,16 +530,17 @@ local function initializeChatInputViewer()
 	ChatInputViewerControl_Label:SetFont("$(CHAT_FONT)|$(KB_" .. savedVariables.fontsize .. ")|soft-shadow-thick")
 	ChatInputViewerControl_Label:SetWrapMode(TEXT_WRAP_MODE_ELLIPSIS)
 	ChatInputViewerControl:ClearAnchors()
+	nrOfShownLines = CalculateNrOfLines( savedVariables.visible, savedVariables.minimised)
 	if (savedVariables.mode == 1) then
 		ChatInputViewerControl:SetAnchor(TOPLEFT, ZO_ChatWindow, BOTTOMLEFT, 0, 0)
 		ChatInputViewerControl:SetAnchor(TOPRIGHT, ZO_ChatWindow, BOTTOMRIGHT, 0, 0)
-		ResizeViewerControl(0, savedVariables.nroflines, savedVariables.fontsize)
+		--ResizeViewerControl(0, nrOfShownLines, savedVariables.fontsize)
 	else
 		ChatInputViewerControl:SetAnchor(TOPLEFT, ZO_ChatWindow, BOTTOMLEFT, 0, 0)
-		ResizeViewerControl(savedVariables.windowwidth, savedVariables.nroflines, savedVariables.fontsize)
+		--ResizeViewerControl(savedVariables.windowwidth, nrOfShownLines, savedVariables.fontsize)
 	end
-
-	SetChatHandlers(savedVariables.visible)
+	ChatInputViewerControl_Label:SetHidden(not savedVariables.visible)
+	ChatInputViewerControl_BG:SetHidden(not savedVariables.visible)
 
 	--- The panel data for the ChatInputViewer addon, that are shown in the Addon settings GUI.
 	---   @class panelData
@@ -352,9 +565,17 @@ local function initializeChatInputViewer()
 			name = GetString(CHATIV_VISIBLE),
 			tooltip = GetString(CHATIV_VISIBLE_TOOLTIP),
 			getFunc = function() return getVisibility() end,
-			setFunc = function(value) setVisibility(value) end,
+			setFunc = function(value) setVisibility(value, savedVariables.minimised) end,
 		},
 		[3] = {
+			type = "checkbox",
+			name = GetString(CHATIV_MINIMISED),
+			tooltip = GetString(CHATIV_MINIMISED_TOOLTIP),
+			getFunc = function() return getMinimised() end,
+			setFunc = function(value) setVisibility(savedVariables.visible, value) end,
+			disabled = function() return (savedVariables.visible == false) end,
+		},
+		[4] = {
 			type = "dropdown",
 			name = GetString(CHATIV_FONTSIZE),
 			tooltip = GetString(CHATIV_FONTSIZE_TOOLTIP),
@@ -368,7 +589,7 @@ local function initializeChatInputViewer()
 			getFunc = function() return getFontSize() end,
 			setFunc = function(value) setFontSize(value) end,
 		},
-		[4] = {
+		[5] = {
 			type = "dropdown",
 			name = GetString(CHATIV_WINDOWMODE),
 			tooltip = GetString(CHATIV_WINDOWMODE_TOOLTIP),
@@ -376,7 +597,7 @@ local function initializeChatInputViewer()
 			getFunc = function() return getWindowMode() end,
 			setFunc = function(value) setWindowMode(value) end,
 		},
-		[5] = {
+		[6] = {
 			type = "dropdown",
 			name = GetString(CHATIV_WINDOWWIDTH),
 			tooltip = GetString(CHATIV_WINDOWWIDTH_TOOLTIP),
@@ -390,7 +611,7 @@ local function initializeChatInputViewer()
 			setFunc = function(value) setWindowWidth(value) end,
 			disabled = function() return (savedVariables.mode == 1) end,
 		},
-		[6] = {
+		[7] = {
 			type = "dropdown",
 			name = GetString(CHATIV_NROFLINES),
 			tooltip = GetString(CHATIV_NROFLINES_TOOLTIP),
@@ -409,6 +630,10 @@ local function initializeChatInputViewer()
 	local LAM = LibAddonMenu2
 	LAM:RegisterAddonPanel(panelName, panelData)
 	LAM:RegisterOptionControls(panelName, optionsData)
+
+	--- Keybinding
+	kbText = GetString(CHATIV_KEYBINDING_TUGGLE)
+	ZO_CreateStringId("SI_BINDING_NAME_CIV_TOGGLE_WINDOW", kbText)
 end
 
 --- Event handler for the EVENT_ADD_ON_LOADED event.
@@ -417,6 +642,7 @@ end
 function ChatInputViewer.OnAddOnLoaded(event, name)
 
 	if name ~= "ChatInputViewer" then return end
+
 	EVENT_MANAGER:UnregisterForEvent("ChatInputViewer", EVENT_ADD_ON_LOADED)
 
 	--- The default values for the ChatInputViewer addon.
@@ -424,23 +650,42 @@ function ChatInputViewer.OnAddOnLoaded(event, name)
 	---   @field visible boolean # The visibility status of the viewer.
 	local defaults = {
 		visible = true,
+		minimised = false,
 		fontsize = 22,
-		mode = 1,
+		mode = 1,  -- adjusted to chat window
 		windowwidth = 1000,
 		nroflines = 4,
 	}
+
+	--CivLogger:Debug( ".   Vor savedVariables lesen: "..tostring(defaults.visible)..", "..tostring(defaults.minimised))
+
 	savedVariables = ZO_SavedVars:NewAccountWide("ChatInputViewerVars", 1, nil, defaults)
 
+	--CivLogger:Debug( ".   Vor initializeChatInputViewer: "..tostring(savedVariables.visible)..", "..tostring(savedVariables.minimised))
+
 	initializeChatInputViewer()
-	setVisibility(savedVariables.visible)
+
+	--CivLogger:Debug( ".   Vor setVisibility: "..tostring(savedVariables.visible)..", "..tostring(savedVariables.minimised))
+
+	setVisibility(savedVariables.visible, savedVariables.minimised)
+	SetChatWindowAtStartUp()
+
+	--CivLogger:Debug( ".   Vor SetChatHandlers: "..tostring(savedVariables.visible)..", "..tostring(savedVariables.minimised))
+
+	SetChatHandlers(savedVariables.visible)
 
 end
 
+--- Create AddOn logger instance
+--CivLogger = LibDebugLogger:Create(ChatInputViewer.name)
+--CivLogger:Info( "CivLogger created.")
+--CivLogger:SetMinLevelOverride(LibDebugLogger.LOG_LEVEL_DEBUG)
+--CivLogger:Debug( "CivLogger log level set to DEBUG.")
+
 --- Register the slash commands
-SLASH_COMMANDS["/showchatviewer"] = ShowViewer
 SLASH_COMMANDS["/civshow"] = ShowViewer
-SLASH_COMMANDS["/hidechatviewer"] = HideViewer
 SLASH_COMMANDS["/civhide"] = HideViewer
+SLASH_COMMANDS["/civmini"] = MinimiseViewer
 
 --- Register the EVENT_ADD_ON_LOADED event
 EVENT_MANAGER:RegisterForEvent(ChatInputViewer.name, EVENT_ADD_ON_LOADED, ChatInputViewer.OnAddOnLoaded)

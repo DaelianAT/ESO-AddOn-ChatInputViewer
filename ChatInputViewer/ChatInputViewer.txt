@@ -2,12 +2,13 @@
 ## Description: This AddOn shows the complete text of the Chat Input text field in a multi line textfield.
 ## APIVersion: 101049 101049
 ## Author: GetanoNero
-## Version: 1.2.3
-## AddOnVersion: 11
+## Version: 1.3.0
+## AddOnVersion: 12
 ##
 ## SavedVariables: ChatInputViewerVars
 ##
 ## DependsOn: LibAddonMenu-2.0>=40
+## DependsOn: LibDebugLogger>=180
 ##
 ## This Add-on is not created by, affiliated with or sponsored by ZeniMax Media Inc.
 ## or its affiliates. The Elder Scrolls® and related logos are registered Trademarks
@@ -26,3 +27,4 @@ ChatInputViewer.lua
 
 # Addon XML.
 ChatInputViewer.xml
+Bindings.xml
