@@ -5,6 +5,7 @@
 --- V. 1.3.0 - New view mode 'minimized'
 ---          - Key binding for tuggling the view state
 ---          - new chat commands '/civshow', '/civhide', '/civmini'
+---          - Message with update information after login.
 --- V. 1.2.3 - Update for ESO Version 11.3.4, API version 101049.
 --- V. 1.2.2 - Bugfix for an issue during AddOn initialization
 --- V. 1.2.1 - Update for ESO Version 11.2.6, API version 101048.
@@ -59,6 +60,27 @@ local LastChannel
 ---   1   "Adjusted to chat window"
 ---   2   "Fixed width"
 local ModeChoices
+
+
+--- Hilfsfunktion für die verzögerte Nachricht
+local function ShowWelcomeMessage()
+
+	--d("== Chat Input Viewer - neue Funktionen in Version 1.3.0 ==")
+	d(GetString(CHATIV_UPDATEMESSAGE_01))
+	--d(" * Neuer Anzeigemodus 'Minimiert'")
+	d(GetString(CHATIV_UPDATEMESSAGE_02))
+	--d(" * Chat Kommandos /civshow, /civhide und /civmini")
+	d(GetString(CHATIV_UPDATEMESSAGE_03))
+	--d(" * Konfigurierbares Tastaturkommando zum Wechseln des Modus.")
+	d(GetString(CHATIV_UPDATEMESSAGE_04))
+	--d("Details findet ihr in der AddOn-Beschreibung auf USOUI: https://www.esoui.com/downloads/info4158-ChatInputViewer.html")
+	d(GetString(CHATIV_UPDATEMESSAGE_05))
+	if (savedVariables.updatemessages.messagecounter < 5) then
+		--df("(Message will be shown %s more times after login.)", 5 - savedVariables.updatemessages.messagecounter)
+		df(GetString(CHATIV_UPDATEMESSAGE_06), 5 - savedVariables.updatemessages.messagecounter)
+	end
+
+end
 
 
 --- Updates the viewer display with the current text of the chat input textfield.
@@ -648,13 +670,22 @@ function ChatInputViewer.OnAddOnLoaded(event, name)
 	--- The default values for the ChatInputViewer addon.
 	---   @class defaults
 	---   @field visible boolean # The visibility status of the viewer.
+	---   @field updatemessages object # Data structure for showing update informations after login.
+	---   @field startversion   number # The AddOn version that was initially installed on this machine.
+	---   @field messageversion number # The version of the last update information shown completly.
+	---   @field messagecounter number # Counter how often the current update information was shown.
 	local defaults = {
+		updatemessages = {
+			startversion = 10300,
+			messageversion = 0,
+			messagecounter = 0
+		},
 		visible = true,
 		minimised = false,
 		fontsize = 22,
 		mode = 1,  -- adjusted to chat window
 		windowwidth = 1000,
-		nroflines = 4,
+		nroflines = 4
 	}
 
 	--CivLogger:Debug( ".   Vor savedVariables lesen: "..tostring(defaults.visible)..", "..tostring(defaults.minimised))
@@ -676,6 +707,29 @@ function ChatInputViewer.OnAddOnLoaded(event, name)
 
 end
 
+function ChatInputViewer.OnPlayerActivated(_, initial) 
+
+	EVENT_MANAGER:UnregisterForEvent("ChatInputViewer", EVENT_PLAYER_ACTIVATED)
+
+	if (savedVariables.updatemessages.messageversion < 10300) then
+
+		if (savedVariables.updatemessages.messagecounter >= 5) then
+
+			savedVariables.updatemessages.messageversion = 10300
+			savedVariables.updatemessages.messagecounter = 0
+
+		else
+
+			savedVariables.updatemessages.messagecounter = savedVariables.updatemessages.messagecounter + 1
+			-- 500 Millisekunden Verzögerung geben pChat Zeit, fertig zu werden
+			zo_callLater(function() ShowWelcomeMessage() end, 500)
+
+		end
+
+	end
+
+end
+
 --- Create AddOn logger instance
 --CivLogger = LibDebugLogger:Create(ChatInputViewer.name)
 --CivLogger:Info( "CivLogger created.")
@@ -689,3 +743,6 @@ SLASH_COMMANDS["/civmini"] = MinimiseViewer
 
 --- Register the EVENT_ADD_ON_LOADED event
 EVENT_MANAGER:RegisterForEvent(ChatInputViewer.name, EVENT_ADD_ON_LOADED, ChatInputViewer.OnAddOnLoaded)
+
+--- Register the EVENT_PLAYER_ACTIVATED  event
+EVENT_MANAGER:RegisterForEvent(ChatInputViewer.name, EVENT_PLAYER_ACTIVATED, ChatInputViewer.OnPlayerActivated)

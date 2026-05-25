@@ -18,6 +18,12 @@ local localization_strings = {
   CHATIV_NROFLINES = "Anzahl der Textzeilen",
   CHATIV_NROFLINES_TOOLTIP = "Die Anzahl der Textzeilen, die im Viewer angezeigt werden können. Eine Änderung dieses Werts ändert die Höhe des Viewer-Fensters.",
   CHATIV_KEYBINDING_TUGGLE = "Das Fenster ein- oder ausblenden",
+  CHATIV_UPDATEMESSAGE_01 = "== Chat Input Viewer - neue Funktionen in Version 1.3.0 ==",
+  CHATIV_UPDATEMESSAGE_02 = " * Neuer Anzeigemodus 'Minimiert'",
+  CHATIV_UPDATEMESSAGE_03 = " * Chat Kommandos /civshow, /civhide und /civmini",
+  CHATIV_UPDATEMESSAGE_04 = " * Konfigurierbares Tastaturkommando zum Wechseln des Modus.",
+  CHATIV_UPDATEMESSAGE_05 = "Details findet ihr in der AddOn-Beschreibung auf USOUI: https://www.esoui.com/downloads/info4158-ChatInputViewer.html",
+  CHATIV_UPDATEMESSAGE_06 = "(Die Meldung wird noch %s Mal nach einem Login angezeigt werden.)",
 }
 
 for stringId, stringValue in pairs(localization_strings) do
