@@ -2,7 +2,8 @@
 --- Version 1.3.0
 
 --- Changelog
---- V. 1.3.0 - New view mode 'minimized'
+--- V. 1.3.0 - Update for ESO Version 12.0.5, API version 101050.
+---          - New view mode 'minimized'
 ---          - Key binding for tuggling the view state
 ---          - new chat commands '/civshow', '/civhide', '/civmini'
 ---          - Message with update information after login.
